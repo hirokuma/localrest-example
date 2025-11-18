@@ -3,13 +3,14 @@ use clap::{CommandFactory, Parser, Subcommand};
 
 use rest::{RestReq, RestRes};
 
-const SERVER: &str = "http://127.0.0.1:8000";
-
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
+
+    #[arg(short, long, default_value_t = 8000)]
+    port: u16,
 }
 
 #[derive(Subcommand)]
@@ -32,7 +33,7 @@ fn main() -> Result<()> {
     };
 
     if let Some(req) = req {
-        let res = ureq::post(SERVER)
+        let res = ureq::post(format!("http://127.0.0.1:{}", cli.port))
             .header("X-My-Header", "Secret")
             .send_json(&req)?
             .body_mut()
