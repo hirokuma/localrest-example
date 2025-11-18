@@ -1,13 +1,21 @@
+mod greet;
+
+use std::collections::HashMap;
+
 use anyhow::Result;
 use serde_json;
-use tiny_http;
+use tiny_http::{Response, Server};
 
-use rest::{MySendBody, MyRecvBody};
+use rest::{RestReq, RestRes};
 
 const SERVER: &str = "0.0.0.0:8000";
 
+type CommandHandler = fn(req: RestReq) -> Result<RestRes>;
+
 fn main() -> Result<()> {
-    use tiny_http::{Response, Server};
+    // use tiny_http::{Response, Server};
+    let mut handlers: HashMap<&str, CommandHandler> = HashMap::new();
+    handlers.insert(greet::COMMAND, greet::handle);
 
     let server = Server::http(SERVER).unwrap();
 
@@ -20,7 +28,12 @@ fn main() -> Result<()> {
         let mut body = String::new();
         let res = match request.as_reader().read_to_string(&mut body) {
             Ok(_) => {
-                let res = handler(body)?;
+                let req: RestReq = serde_json::from_str(body.as_str())?;
+                let res = if let Some(func) = handlers.get(req.command.as_str()) {
+                    func(req)?
+                } else {
+                    anyhow::bail!("unknown: {}", req.command)
+                };
                 serde_json::to_string(&res)?
             },
             Err(e) => { anyhow::bail!("Error {e}") },
@@ -33,8 +46,3 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn handler(body: String) -> Result<MyRecvBody> {
-    let data: MySendBody = serde_json::from_str(&body)?;
-    println!("request: {}", data.thing);
-    Ok(MyRecvBody{other: "good-bye".to_string()})
-}

@@ -1,20 +1,46 @@
 use anyhow::Result;
+use clap::{CommandFactory, Parser, Subcommand};
 
-use rest::{MySendBody, MyRecvBody};
+use rest::{RestReq, RestRes};
 
 const SERVER: &str = "http://127.0.0.1:8000";
 
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Send greeting message
+    Greet { msg: String },
+}
+
 fn main() -> Result<()> {
-    let send_body = MySendBody {
-        thing: "good morning".to_string(),
+    let cli = Cli::parse();
+
+    let req: Option<RestReq> = match cli.command {
+        None => {
+            // clap will show help if user asks, but when no subcommand provided, print help
+            Cli::command().print_help()?;
+            println!();
+            None
+        }
+        Some(Commands::Greet { msg }) => Some(RestReq::new("greet", msg)),
     };
 
-    // Requires the `json` feature enabled.
-    let recv_body = ureq::post(SERVER)
-        .header("X-My-Header", "Secret")
-        .send_json(&send_body)?
-        .body_mut()
-        .read_json::<MyRecvBody>()?;
-    println!("response: {}", recv_body.other);
+    if let Some(req) = req {
+        let res = ureq::post(SERVER)
+            .header("X-My-Header", "Secret")
+            .send_json(&req)?
+            .body_mut()
+            .read_json::<RestRes>()?;
+
+        let json_str = serde_json::to_string_pretty(&res)?;
+        println!("{}", json_str);
+    }
+
     Ok(())
 }
