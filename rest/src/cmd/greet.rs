@@ -1,8 +1,6 @@
 use anyhow::Result;
 
-use rest::{RestReq, RestRes};
-
-pub const COMMAND: &str = "greet";
+use crate::{RestReq, RestRes};
 
 pub fn handle(req: RestReq) -> Result<RestRes> {
     println!("greeting message: {}", req.params);

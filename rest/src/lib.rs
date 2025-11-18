@@ -1,4 +1,10 @@
+pub mod cmd;
+pub mod server;
+
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
+
+pub type CommandHandler = fn(req: RestReq) -> Result<RestRes>;
 
 #[derive(Serialize, Deserialize)]
 pub struct RestReq {
