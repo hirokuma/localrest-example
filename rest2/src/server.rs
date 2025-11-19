@@ -3,42 +3,58 @@ use std::collections::HashMap;
 use anyhow::Result;
 use axum::{
     Json,
+    Router,
     extract::State,
     http::StatusCode,
     response::{IntoResponse, Response},
+    routing::post,
 };
 use serde_json::json;
 
 use crate::{CommandHandler, RestReq, RestRes, cmd};
 
+pub async fn start(host: String) {
+    // Build our application with some routes
+    let app = Router::new()
+        .route("/", post(AppState::handler))
+        .with_state(AppState::new());
+
+    // Run our application
+    let listener = tokio::net::TcpListener::bind(host)
+        .await
+        .unwrap();
+    axum::serve(listener, app).await.unwrap();
+}
+
 #[derive(Clone)]
-pub struct AppState {
+struct AppState {
     handlers: HashMap<&'static str, CommandHandler>,
 }
 
 impl AppState {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let handlers = cmd::register_handle();
 
         Self { handlers }
     }
 
     // "/" に対してここが post で呼ばれる
-    pub async fn handler(
+    async fn handler(
         State(state): State<Self>,
         Json(value): Json<RestReq>,
     ) -> Result<Json<RestRes>, AppError> {
-        let res = if let Some(func) = state.handlers.get(value.command.as_str()) {
-            func(&value)?
-        } else {
-            return Err(AppError(anyhow::anyhow!("だめ")));
-        };
-        Ok(Json(res))
+        match state.handlers.get(value.command.as_str()) {
+            Some(func) => {
+                let res = func(&value)?;
+                Ok(Json(res))
+            },
+            None => Err(AppError(anyhow::anyhow!("だめ"))),
+        }
     }
 }
 
 // https://github.com/tokio-rs/axum/blob/b1ef45469bf8ffa334e86ddd12e7f4d4b82fa1ab/examples/anyhow-error-response/src/main.rs
-pub struct AppError(anyhow::Error);
+struct AppError(anyhow::Error);
 
 // Tell axum how to convert `AppError` into a response.
 impl IntoResponse for AppError {
