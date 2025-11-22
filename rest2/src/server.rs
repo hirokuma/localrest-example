@@ -81,35 +81,3 @@ where
         Self(err.into())
     }
 }
-
-/*
-#[derive(FromRequest)]
-#[from_request(via(axum::Json), rejection(ApiError))]
-struct AppJson<T>(T);
-
-// We create our own rejection type
-#[derive(Debug)]
-pub struct ApiError {
-    status: StatusCode,
-    message: String,
-}
-
-impl<T> IntoResponse for AppJson<T>
-where
-    axum::Json<T>: IntoResponse,
-{
-    fn into_response(self) -> axum::response::Response {
-        axum::Json(self.0).into_response()
-    }
-}
-
-impl IntoResponse for ApiError {
-    fn into_response(self) -> axum::response::Response {
-        let payload = json!({
-            "message": self.message,
-        });
-
-        (self.status, axum::Json(payload)).into_response()
-    }
-}
-*/
